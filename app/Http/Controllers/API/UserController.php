@@ -28,7 +28,10 @@ class UserController extends Controller
         ], $this->successStatus);
         }
         else{
-            return response()->json(['error'=>'Unauthorised'], 401);
+            return response()->json([
+                'error'=>'Unauthorised',
+                'status'=> 'false',
+            ], 401);
         }
     }
 
@@ -51,16 +54,26 @@ class UserController extends Controller
 
         $count = User::where(['user_name' => $input['user_name']])->count();
         if($count) {
-            $response['status'] = 401;
-            $response['message'] = "Username already exist";
-            return response()->json($response, 401);      
+            
+            // $response['status'] = 401;
+            // $response['message'] = "Username already exist";
+
+            return response()->json([
+                'status'=> 401,
+                'message' => 'Username already exist'   
+                ], 401);      
         }
 
         $count = User::where(['email' => $input['email']])->count();
         if($count) {
-            $response['status'] = 401;
-            $response['message'] = "Email already used";
-            return response()->json($response, 401);      
+
+            // $response['status'] = 401;
+            // $response['message'] = "Email already used";
+
+            return response()->json([
+                'status' => 401,
+                'message' => "Email already used",
+            ], 401);      
         }
         
         
@@ -70,12 +83,18 @@ class UserController extends Controller
         
         $user = User::create($input);
 
-        $success['token'] =  $user->createToken('InLearnApp')->accessToken;
-        $success['name'] =  $user->name;
-        $success['user_name'] =  $user->user_name;
-        $success['email'] =  $user->email;
+        // $success['token'] =  $user->createToken('InLearnApp')->accessToken;
+        // $success['name'] =  $user->name;
+        // $success['user_name'] =  $user->user_name;
+        // $success['email'] =  $user->email;
 
-        return response()->json(['success'=>$success], $this->successStatus);
+        return response()->json([
+           'success'=>'success',
+           'token' =>  $user->createToken('InLearnApp')->accessToken,
+           'name' =>  $user->name,
+           'user_name' =>  $user->user_name,
+           'email' =>  $user->email,
+    ], $this->successStatus);
     }
 
     public function details()
