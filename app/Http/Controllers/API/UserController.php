@@ -54,7 +54,7 @@ class UserController extends Controller
 
         $count = User::where(['user_name' => $input['user_name']])->count();
         if($count) {
-            
+
             // $response['status'] = 401;
             // $response['message'] = "Username already exist";
 
@@ -89,6 +89,7 @@ class UserController extends Controller
         // $success['email'] =  $user->email;
 
         return response()->json([
+            'status'=>'true',
            'success'=>'success',
            'token' =>  $user->createToken('InLearnApp')->accessToken,
            'name' =>  $user->name,
