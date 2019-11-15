@@ -18,7 +18,7 @@ class UserController extends Controller
             $user = Auth::user();
            
             return response()->json([
-                'success' => $success,
+                'success' => 'success',
                 'status' => 'true',
                 'user_name' => $user->user_name,
                 'name' => $user->name,
