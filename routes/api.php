@@ -20,4 +20,6 @@ Route::post('profile','API\EditProfileController@editProfile');
 
 Route::group(['middleware' => 'auth:api'], function(){
 	Route::post('details', 'API\UserController@details');
+	Route::post('showPertanyaan','API\UserController@showPertanyaan');
+	Route::post('historyActivity','API\UserController@historyQuestion');
 });
