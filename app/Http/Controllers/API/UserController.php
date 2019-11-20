@@ -20,6 +20,7 @@ class UserController extends Controller
             
             return response()->json([
                 'success' => 'success',
+                'id' => $user->id,
                 'status' => 'true',
                 'user_name' => $user->user_name,
                 'name' => $user->name,
@@ -92,6 +93,7 @@ class UserController extends Controller
         return response()->json([
             'status'=>'true',
            'success'=>'success',
+           'id' => $user->id,
            'token' =>  $user->createToken('InLearnApp')->accessToken,
            'name' =>  $user->name,
            'user_name' =>  $user->user_name,
