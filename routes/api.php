@@ -18,6 +18,20 @@ Route::post('register', 'API\UserController@register');
 
 Route::group(['middleware' => 'auth:api'], function(){
 	Route::post('details', 'API\UserController@details');
-	Route::post('showPertanyaan','API\UserController@showPertanyaan');
-	Route::post('historyActivity','API\UserController@historyQuestion');
+
+	/**
+	 * Route Pertanyaan
+	 */
+	Route::post('showPertanyaan','API\PertanyaanController@showPertanyaan'); //Route menampilkan seluruh pertanyaan pada Home App
+	Route::post('historyActivity','API\PertanyaanController@historyQuestion'); //Route menampilkan seluruh history pertanyaan dan jawaban user
+	Route::post('postPertanyaan','API\PertanyaanController@postPertanyaan'); //Route post Pertanyaan
+	Route::post('showUpdatePertanyaan','API\PertanyaanController@showUpdatePertanyaan'); //Route menampilkan data sebelum update
+	Route::post('storeUpdatePertanyaan','API\PertanyaanController@storeUpdatePertanyaan'); //Route post pertanyaan
+
+	/**
+	 * Route Jawaban
+	 */
+	
+
+
 });
