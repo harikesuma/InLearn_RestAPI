@@ -18,20 +18,35 @@ class EditProfileController extends Controller
 
         $userName = $request->user_name;
         $name = $request->name;
-        $files = $request->file('image');
+        $files = $request->file('imageUpload');
+
+    
+    
         if(!empty($files)) {
-            $extension = $files->getClientOriginalExtension();
-            Storage::disk('public')->put($files->getFilename().'.'.$extension,  File::get($files));
+            // $extension = $files->getClientOriginalExtension();
+            // Storage::disk('public')->put($files->getFilename().'.'.$extension,  File::get($files));
+
+            $folderName = 'user';
+            $fileName = $userName.'_image';
+            $fileExtension = $files->getClientOriginalExtension();
+            $fileNameToStorage = $fileName.'_'.time().'.'.$fileExtension;
+            $filePath = $files->storeAs('public/'.$folderName , $fileNameToStorage); 
     }
         $user = User::find($request->id);
-        $user->name = $name;
+
+        Storage::disk('public')->delete("/user/".$user->pict);
+
         $user->user_name = $userName;
-        $user->pict = $files->getFileName().'.'.$extension;
+        $user->name = $name;
+        $user->pict = $fileNameToStorage;
         $user->save();
 
         return response()->json([
             'status' => 'true',
-            'msg'=> 'Update profile success'
+            'msg'=> 'Update profile success',
+            'name' => $name,
+            'user_name' => $userName,
+            'pict' => $fileNameToStorage
         ]);
 }
 }

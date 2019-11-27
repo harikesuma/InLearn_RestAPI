@@ -19,6 +19,7 @@ Route::post('register', 'API\UserController@register');
 Route::post('profile','API\EditProfileController@editProfile');
 
 Route::group(['middleware' => 'auth:api'], function(){
+	Route::get('kategori', 'API\KategoriController@getKategori');
 	Route::post('details', 'API\UserController@details');
 	Route::post('showPertanyaan','API\UserController@showPertanyaan');
 	Route::post('historyActivity','API\UserController@historyQuestion');
