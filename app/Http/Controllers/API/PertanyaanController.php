@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers\API;
 
+
+use App\Pertanyaan; 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Validator;
 use DB;
 use Carbon\Carbon;
 use Exception;
+use Intervention\Image\ImageManagerStatic as Image;
 
 class PertanyaanController extends Controller
 {
@@ -25,45 +28,62 @@ class PertanyaanController extends Controller
 
         // $token = $request->header('Authorization');
 
-        $pertanyaan = DB::table('tb_pertanyaan')
-                        ->join('tb_user','tb_pertanyaan.user_id', '=', 'tb_user.id')
-                        ->join('tb_kategori','tb_pertanyaan.kategori_id', '=', 'tb_kategori.id')
-                        ->select('tb_pertanyaan.id AS pertanyaanID', 'tb_pertanyaan.pertanyaan', 'tb_kategori.kategori', 'tb_pertanyaan.pict AS picture', 'tb_user.name AS nama_penanya', 'tb_user.user_name AS username_penanya', 'tb_user.pict AS user_pict', 'tb_pertanyaan.created_at AS tgl_post')
-                        ->where('tb_kategori.kategori', '=', $request->kategori)
-                        ->orderBy('tb_pertanyaan.id','DESC')->get();
+        // $pertanyaan = DB::table('tb_pertanyaan')
+        //                 ->join('tb_user','tb_pertanyaan.user_id', '=', 'tb_user.id')
+        //                 ->join('tb_kategori','tb_pertanyaan.kategori_id', '=', 'tb_kategori.id')
+        //                 ->select('tb_pertanyaan.id AS pertanyaanID', 'tb_pertanyaan.pertanyaan', 'tb_kategori.kategori', 'tb_pertanyaan.pict AS picture', 'tb_user.name AS nama_penanya', 'tb_user.user_name AS username_penanya', 'tb_user.pict AS user_pict', 'tb_pertanyaan.created_at AS tgl_post')
+        //                 ->where('tb_kategori.kategori', '=', $request->kategori)
+        //                 ->orderBy('tb_pertanyaan.id','DESC')->get();
         
-        $pertanyaan = $pertanyaan->toArray();
+        // $pertanyaan = $pertanyaan->toArray();
         
-        $data = [];
+        // $data = [];
 
-        $i = 0;
-        foreach ($pertanyaan as $pertanya) {          
+        // $i = 0;
+        // foreach ($pertanyaan as $pertanya) {          
 
-            $jawaban = DB::table('tb_jawaban')
-                        ->join('tb_pertanyaan','tb_jawaban.pertanyaan_id', '=', 'tb_pertanyaan.id')
-                        ->select(DB::raw('COUNT(tb_jawaban.id) AS jumlahJawaban'))
-                        ->groupBy('tb_jawaban.pertanyaan_id')
-                        ->where('tb_jawaban.pertanyaan_id', $pertanya->pertanyaanID)
-                        ->first();
+        //     $jawaban = DB::table('tb_jawaban')
+        //                 ->join('tb_pertanyaan','tb_jawaban.pertanyaan_id', '=', 'tb_pertanyaan.id')
+        //                 ->select(DB::raw('COUNT(tb_jawaban.id) AS jumlahJawaban'))
+        //                 ->groupBy('tb_jawaban.pertanyaan_id')
+        //                 ->where('tb_jawaban.pertanyaan_id', $pertanya->pertanyaanID)
+        //                 ->first();
 
-            $jwb = [
-                    'pertanyaanID' => $pertanya->pertanyaanID,
-                    'pertanyaan' => $pertanya->pertanyaan,
-                    'kategori' => $pertanya->kategori,
-                    'picture' => $pertanya->picture,
-                    'username_penanya' => $pertanya->username_penanya,
-                    'user_pict' => $pertanya->user_pict,
-                    'tgl_post' => $pertanya->tgl_post,
-                    'total_jawaban' => $jawaban->jumlahJawaban,
-                    ];
+        //     $jwb = [
+        //             'pertanyaanID' => $pertanya->pertanyaanID,
+        //             'pertanyaan' => $pertanya->pertanyaan,
+        //             'kategori' => $pertanya->kategori,
+        //             'picture' => $pertanya->picture,
+        //             'username_penanya' => $pertanya->username_penanya,
+        //             'user_pict' => $pertanya->user_pict,
+        //             'tgl_post' => $pertanya->tgl_post,
+        //             'total_jawaban' => $jawaban->jumlahJawaban,
+        //             ];
 
-            array_push($data,$jwb);
+        //     array_push($data,$jwb);
 
+        // }
+
+
+        $pertanyaans = Pertanyaan::orderBy('id','DESC')->get();
+        
+        $pertanyaan['msg'] = "succes";
+
+        foreach($pertanyaans as $pertanya){
+            $pertanyaan['pertanyaanList'][] = array(
+                'id' => $pertanya['id'],
+                'user_pict' => $pertanya->user->pict,
+                'user_name' => $pertanya->user->user_name,
+                'kategori' => $pertanya->kategori->kategori,
+                'pertanyaan' => $pertanya['pertanyaan'],
+                'pict' => $pertanya['pict'],
+                'edited' => $pertanya['edited'],
+                'total_jawaban' => $pertanya->countJawaban($pertanya['id']),
+                'created_at' => $pertanya['created_at']
+                );
         }
         
-        return response()->json([
-            'pertanyaan' => $data,
-        ],$this->successStatus);
+        return response()->json($pertanyaan,$this->successStatus);
     }
 
 
@@ -158,44 +178,53 @@ class PertanyaanController extends Controller
     public function postPertanyaan(Request $request)
     {
         $request->validate([
-           'userID' => 'required',
-           'kategoriID' => 'required',
-           'pertanyaan' => 'required|string',
-           'pic' => 'image|nullable|max:5000',
+           'user_id' => 'required',
+           'kategori_id' => 'required',
+           'question' => 'required|string',
+           'imageUpload' => 'image|nullable|max:5000',
         ]);
+        $files = $request->file('imageUpload');
 
         try {
+    
+            if(!empty($files)) {
+                $folderName = 'pertanyaan';
+                $fileName = $folderName.'_image';
+                $fileExtension = $files->getClientOriginalExtension();
+                $fileNameToStorage = $fileName.'_'.time().'.'.$fileExtension;
 
-            if($request->hasFile('pic')){
-                $path = $request->file('pic')->store('public/pic_Pertanyaan'); //upload file
+                $image_resize = Image::make($files->getRealPath())->resize(500,500);
+                
+                $filePath = $image_resize->save(public_path('storage/pertanyaan/'.$fileNameToStorage)); 
+                
             } else {
-                $path = NULL;
+                $filePath = NULL;
             }
 
             // dd($path);
  
             
             DB::table('tb_pertanyaan')->insert([
-                'user_id' => $request->userID,
-                'kategori_id' => $request->kategoriID,
-                'pertanyaan' => $request->pertanyaan,
-                'pict' => $path,
-                'edited' => 1,
+                'user_id' => $request->user_id,
+                'kategori_id' => $request->kategori_id,
+                'pertanyaan' => $request->question,
+                'pict' => $fileNameToStorage,
+                'edited' => "0",
                 'created_at' => Carbon::now(),
-                'updated_at' => NULL,
+                'updated_at' => Carbon::now(),
             ]);
 
 
         } catch (Exception $e) {
             
             return response()->json([
-                'messages' => $e->getMessage(),
+                'msg' => $e->getMessage(),
             ], 401);
 
         }
 
             return response()->json([
-                'messages' => 'Pertanyaan berhasil di Upload'
+                'msg' => 'Pertanyaan berhasil di Upload'
             ], $this->successStatus);
 
 

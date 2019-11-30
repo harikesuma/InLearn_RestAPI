@@ -9,15 +9,28 @@ use Illuminate\Http\Request;
 
 class KategoriController extends Controller
 {
+    public $successStatus = 200;
 
     public function getKategori(){
-        $kategori = Kategori::all();
-        foreach($kategori as $kat){
-            $kat['kategoriList'][] = array(
-                'id' => $data['id'],
-                'kategori' => $data['kategori'],
+        
+
+        // $kategori = Kategori::get();
+        // return response()->json(['success' => $kategori], $this-> successStatus); 
+
+
+        $kategoris = Kategori::get();
+
+        $kategori['msg'] = 'success';
+        foreach($kategoris as $kat){
+            $kategori['kategoriList'][] = array(
+                'id' => $kat['id'],
+                'kategori' => $kat['kategori'],
                 );
         }
+        
+        return response()->json($kategori); ;
+
+
     }
 
 }

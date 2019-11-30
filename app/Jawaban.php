@@ -4,10 +4,9 @@ namespace App;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Kategori extends Model
+class Jawaban extends Model
 {
-  
-    protected $table = 'tb_kategori';
+    protected $table = 'tb_jawaban';
     protected $primaryKey = 'id';
 
        /**
@@ -16,12 +15,11 @@ class Kategori extends Model
      * @var array
      */
     protected $fillable = [
-        'kategori'
+        'pertanyaan_id', 'user_id', 'jawaban'
     ];
-
 
     public function pertanyaan()
     {
-        return $this->hasMany('App\Pertanyaan');
+        return $this->belongsTo('App\Pertanyaan');
     }
 }
