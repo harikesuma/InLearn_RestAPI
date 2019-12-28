@@ -22,4 +22,19 @@ class Jawaban extends Model
     {
         return $this->belongsTo('App\Pertanyaan');
     }
+
+    public function user()
+    {
+        return $this->belongsTo('App\User');
+    }
+
+    public function likeJawaban(){
+        return $this->hasMany('App\LikeJawaban');
+    }
+
+    public function countLike($id){
+        $like = LikeJawaban::where('jawaban_id','=',$id)->get();
+        $totallike = $like->count();
+        return $totallike;
+    }
 }

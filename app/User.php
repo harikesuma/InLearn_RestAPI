@@ -46,4 +46,13 @@ class User extends Authenticatable
     {
         return $this->hasMany('App\Pertanyaan');
     }
+
+    public function jawaban(){
+        return $this->hasMany('App\Jawaban');
+    }
+
+    public function fcmToken()
+    {
+        return $this->belongsTo('App\FCMToken');
+    }
 }

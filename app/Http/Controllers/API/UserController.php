@@ -107,5 +107,22 @@ class UserController extends Controller
         return response()->json(['success' => $user], $this->successStatus);
     }
 
+    public function getAllUser(){
+        $users = User::get();
+
+        $user['msg'] = "succes";
+
+        foreach($users as $u){
+            $user['userList'][] = array(
+                'id' => $u['id'],
+                'name' => $u->name,
+                'user_name' => $u->user_name,
+                'email' => $u->email,
+                );
+        }
+
+        return response()->json($user, $this->successStatus);
+    }
+
 
 }

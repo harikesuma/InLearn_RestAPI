@@ -4,6 +4,10 @@ namespace App\Http\Controllers\API;
 
 
 use App\Pertanyaan; 
+use App\Jawaban; 
+use App\LikeJawaban;
+use App\User;
+use App\FCMToken;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Validator;
@@ -11,6 +15,7 @@ use DB;
 use Carbon\Carbon;
 use Exception;
 use Intervention\Image\ImageManagerStatic as Image;
+use App\Notification;
 
 class PertanyaanController extends Controller
 {
@@ -72,9 +77,11 @@ class PertanyaanController extends Controller
         foreach($pertanyaans as $pertanya){
             $pertanyaan['pertanyaanList'][] = array(
                 'id' => $pertanya['id'],
+                'user_id' => $pertanya['user_id'],
                 'user_pict' => $pertanya->user->pict,
                 'user_name' => $pertanya->user->user_name,
                 'kategori' => $pertanya->kategori->kategori,
+                'kategori_id' => $pertanya->kategori_id,
                 'pertanyaan' => $pertanya['pertanyaan'],
                 'pict' => $pertanya['pict'],
                 'edited' => $pertanya['edited'],
@@ -195,7 +202,7 @@ class PertanyaanController extends Controller
 
                 $image_resize = Image::make($files->getRealPath())->resize(500,500);
                 
-                $filePath = $image_resize->save(public_path('storage/pertanyaan/'.$fileNameToStorage)); 
+                $filePath = $image_resize->save('storage/pertanyaan/'.$fileNameToStorage); 
                 
             } else {
                 $filePath = NULL;
@@ -287,6 +294,237 @@ class PertanyaanController extends Controller
 
     }
 
+    public function showDetailPertanyaan($id){
+        $pertanyaan = Pertanyaan::findOrFail($id);
+        return response()->json([
+            'msg' => 'success',
+            'id' => $pertanyaan['id'],
+            'user_pict' => $pertanyaan->user->pict,
+            'user_name' => $pertanyaan->user->user_name,
+            'kategori' => $pertanyaan->kategori->kategori,
+            'pertanyaan' => $pertanyaan['pertanyaan'],
+            'pict' => $pertanyaan['pict'],
+            'edited' => $pertanyaan['edited'],
+            'created_at' => $pertanyaan['created_at'],
+        ], $this->successStatus);
+    
+    }
 
+    public function showComment($id){
+        $jawabans = Jawaban::where('pertanyaan_id',$id)->get();
+          
+        $jawaban['msg'] = "succes";
+
+        foreach($jawabans as $jawab){
+            $jawaban['jawabanList'][] = array(
+                'id' => $jawab['id'],
+                'user_name' => $jawab->user->user_name,
+                'user_pict' => $jawab->user->pict,
+                'comment' => $jawab->jawaban,
+                'like'=> $jawab->countLike($jawab['id']),
+                'created_at' => $jawab['created_at'],
+                'user_id' => $jawab->user_id
+                );
+        }
+        
+        return response()->json($jawaban,$this->successStatus);
+    }
+
+    public function commentLike($id, Request $request){
+        $user = User::where('id','=',$request->user_id)->first();
+        $userComment = $user->name;
+
+        $likejawaban = new LikeJawaban();
+        $likejawaban->jawaban_id = $id;
+        $likejawaban->user_id = $request->user_id;
+        $likejawaban->save();
+
+        $toUser = Jawaban::where('id','=', $id)->first();
+        $toUser = $toUser->user_id;
+
+        $toUserFCM = FCMToken::where('user_id','=',$toUser)->value('fcm_token');
+         /*FCM*/  
+
+         $key = 'AAAAunCvjOc:APA91bE8yDf4y9_EjRMjNVBjyekP01pMWhf0kWuXxlSH9THRfHpGa3kB92_9XZVx9RCu4UYKWV_knZvhxa6sQiWSMEmszo2ryJwxnKOcxpw5qoB7cTF5Sr4tKB7bt-NdahxOFTLlQhxQ';
+         $fcmUrl = 'https://fcm.googleapis.com/fcm/send';
+
+         $headers = array(
+            'Authorization: key='.$key,
+            'Content-Type: application/json'
+        );
+
+        $fields = array(
+            'to'    =>  $toUserFCM,
+            // 'registration_ids'=>$request->user_id,
+            'notification' => array(
+                'title' => "InLearn",
+                'body' => $userComment." liked on you're answer!",
+                'sound'=>'default',
+                'click_action' => "NOTIFICATION_ACTIVITY"
+            )
+        );
+
+
+        $notification = new Notification;
+        $notification->user_id = $toUser;
+        $notification->notification = $userComment." liked on you're answer!";
+        $notification->save();
+
+        $curl_session = curl_init();
+        curl_setopt($curl_session, CURLOPT_URL,$fcmUrl);
+        curl_setopt($curl_session, CURLOPT_POST, true);
+        curl_setopt($curl_session, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($curl_session, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl_session, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($curl_session, CURLOPT_POSTFIELDS, json_encode($fields));
+        $result = curl_exec($curl_session);
+        curl_close($curl_session);
+         /*FCM*/    
+
+        $status["msg"] = "liked!";
+        $status["id"] = $id;
+
+        return response()->json($status,$this->successStatus);
+
+    }
+
+    public function postComment(Request $request){
+        $user = User::where('id','=',$request->user_id)->first();
+        $userComment = $user->name;
+        
+
+        $jawaban = new Jawaban();
+        $jawaban->pertanyaan_id = $request->pertanyaan_id;
+        $jawaban->user_id = $request->user_id;
+        $jawaban->jawaban = $request->jawaban;
+        $jawaban->save();
+
+        $toUser = Pertanyaan::where('id','=', $request->pertanyaan_id)->first();
+        $toUser = $toUser->user_id;
+
+        $toUserFCM = FCMToken::where('user_id','=',$toUser)->value('fcm_token');
+
+
+         /*FCM*/  
+
+         $key = 'AAAAunCvjOc:APA91bE8yDf4y9_EjRMjNVBjyekP01pMWhf0kWuXxlSH9THRfHpGa3kB92_9XZVx9RCu4UYKWV_knZvhxa6sQiWSMEmszo2ryJwxnKOcxpw5qoB7cTF5Sr4tKB7bt-NdahxOFTLlQhxQ';
+         $fcmUrl = 'https://fcm.googleapis.com/fcm/send';
+
+         $headers = array(
+            'Authorization: key='.$key,
+            'Content-Type: application/json'
+        );
+
+        $fields = array(
+            'to'    =>  $toUserFCM,
+            // 'registration_ids'=>$request->user_id,
+            'notification' => array(
+                'title' => "InLearn",
+                'body' => $userComment." comment on you're post!",
+                'sound'=>'default',
+                'click_action' => "NOTIFICATION_ACTIVITY"
+            )
+        );
+
+
+        $notification = new Notification;
+        $notification->user_id = $toUser;
+        $notification->notification = $userComment." comment on you're post!";
+        $notification->save();
+
+        $curl_session = curl_init();
+        curl_setopt($curl_session, CURLOPT_URL,$fcmUrl);
+        curl_setopt($curl_session, CURLOPT_POST, true);
+        curl_setopt($curl_session, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($curl_session, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl_session, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($curl_session, CURLOPT_POSTFIELDS, json_encode($fields));
+        $result = curl_exec($curl_session);
+        curl_close($curl_session);
+         /*FCM*/    
+
+        $status["msg"] = "comment posted!";
+
+        return response()->json($status,$this->successStatus);
+    }
+    
+    public function getUserQuestionHistory($id){
+        $pertanyaans = Pertanyaan::where('user_id', $id)->orderBy('id','DESC')->get();
+        
+        $pertanyaan['msg'] = "succes";
+
+        foreach($pertanyaans as $pertanya){
+            $pertanyaan['pertanyaanList'][] = array(
+                'id' => $pertanya['id'],
+                'user_id' => $pertanya->user_id,
+                'user_pict' => $pertanya->user->pict,
+                'user_name' => $pertanya->user->user_name,
+                'kategori' => $pertanya->kategori->kategori,
+                'pertanyaan' => $pertanya['pertanyaan'],
+                'pict' => $pertanya['pict'],
+                'edited' => $pertanya['edited'],
+                'total_jawaban' => $pertanya->countJawaban($pertanya['id']),
+                'created_at' => $pertanya['created_at']
+                );
+        }
+        
+        return response()->json($pertanyaan,$this->successStatus);
+
+
+    }
+
+    public function getUserAnswerHistory($id){
+        $jawabans = Jawaban::where('user_id',$id)->orderBy('id','DESC')->get();
+          
+        $jawaban['msg'] = "succes";
+
+        foreach($jawabans as $jawab){
+            $jawaban['jawabanList'][] = array(
+                'id' => $jawab['id'],
+                'user_name' => $jawab->user->user_name,
+                'user_pict' => $jawab->user->pict,
+                'comment' => $jawab->jawaban,
+                'like'=> $jawab->countLike($jawab['id']),
+                'created_at' => $jawab['created_at'],
+                'user_id' => $jawab->user_id
+                );
+        }
+        
+        return response()->json($jawaban,$this->successStatus);
+    }
+
+    public function deleteAnswer($id){
+        $jawaban = Jawaban::find($id);
+        $jawaban->delete();
+
+        return response()->json(["msg"=>"comment deleted"],$this->successStatus);
+    }
+
+    public function deleteQuestion($id){
+        $pertanyaan = Pertanyaan::find($id);
+        $pertanyaan->delete();
+
+        return response()->json(["msg"=>"question deleted"],$this->successStatus);
+    }
+
+    public function showEditQuestion($id){
+        $pertanyaan = Pertanyaan::findOrFail($id);
+        
+        $pertanyaan['msg'] = "success";
+        return response()->json($pertanyaan, $this->successStatus);
+    }
+
+    public function editQuestion($id, Request $request){
+        $pertanyaan = Pertanyaan::findOrFail($id);
+
+        $pertanyaan->kategori_id = $request->kategori_id;
+        $pertanyaan->pertanyaan = $request->pertanyaan;
+        $pertanyaan->edited = "1";
+        $pertanyaan->save();
+
+        return response()->json(['msg' => "Update Success"], $this->successStatus);
+
+
+    }
 
 }
